@@ -1,0 +1,46 @@
+{
+  "job_flow": ["read_component","transform_component_prep_time","transform_component_cook_time","write_to_file"],
+  "spark_config": {
+    "spark.master": "local[*]",
+    "spark.app.name": "hello_fresh_pipeline"
+  },
+  "components": {
+    "read_component": {
+      "component_type": "read_file",
+      "component_name": "read_component",
+      "input_path": "/var/etl/input",
+      "read_options": {
+        "header": false,
+        "inferSchema": false
+      },
+      "file_format": "json",
+      "component_schema": "name!String!#!ingredients!String!#!url!String!#!image!String!#!cookTime!String!#!recipeYield!String!#!datePublished!Date!#!prepTime!String!#!description!String"
+    },
+    "transform_component_prep_time": {
+      "column_name": "*",
+      "component_type": "create_edit_column",
+      "component_name": "transform_component_prep_time",
+      "input_component_name": "read_component",
+      "transformations": "prepTime!#!CASE WHEN rlike(prepTime,'.*[0-9]+[H|M]') THEN convertISODurationToMinutes(prepTime) ELSE 'NA' END"
+    },
+    "transform_component_cook_time": {
+      "column_name": "*",
+      "component_type": "create_edit_column",
+      "component_name": "transform_component_cook_time",
+      "input_component_name": "transform_component_prep_time",
+      "transformations": "cookTime!#!CASE WHEN rlike(CookTime,'.*[0-9]+[H|M]') THEN convertISODurationToMinutes(cookTime) ELSE 'NA' END"
+    },
+
+    "write_to_file": {
+      "column_name": "*",
+      "component_type": "write",
+      "component_name": "write_to_file",
+      "output_file_path": "/var/etl/pre_processed_data",
+      "input_component_name": "transform_component_cook_time",
+      "format_type": "parquet",
+      "write_options": {
+        "header": "true"
+      }
+    }
+  }
+}

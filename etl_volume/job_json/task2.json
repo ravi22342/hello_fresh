@@ -1,0 +1,60 @@
+{
+  "job_flow": ["read_component","beef_filter","create_total_time","create_difficulty_column","calculate_avg","write_to_file"],
+  "spark_config": {
+    "spark.master": "local[*]",
+    "spark.app.name": "hello_fresh_pipeline"
+  },
+  "components": {
+    "read_component": {
+      "component_type": "read_file",
+      "component_name": "read_component",
+      "input_path": "/var/etl/pre_processed_data",
+      "read_options": {
+        "header": true,
+        "inferSchema": true
+      },
+      "file_format": "parquet"
+      },
+    "beef_filter": {
+      "filter_condition": "rlike(ingredients,'beef|Beef')",
+      "component_name": "beef_filter",
+      "input_component_name": "read_component",
+      "component_type": "filter_component"
+    },
+    "create_total_time": {
+      "column_name": "*",
+      "component_type": "create_edit_column",
+      "component_name": "create_total_time",
+      "input_component_name": "beef_filter",
+      "transformations": "total_time!#!cookTime+prepTime"
+    },
+    "create_difficulty_column": {
+      "column_name": "*",
+      "component_type": "create_edit_column",
+      "component_name": "create_difficulty_column",
+      "input_component_name": "create_total_time",
+      "transformations": "difficulty!#!CASE WHEN total_time < 30.0 THEN 'easy' WHEN total_time > 60.0 THEN 'hard' ELSE 'medium' END "
+    },
+    "calculate_avg": {
+      "column_name": "*",
+      "component_type": "aggregate_component",
+      "component_name": "calculate_avg",
+      "group_by_column": "difficulty",
+      "aggregate_function": "avg",
+      "agg_column": "total_time",
+      "input_component_name": "create_difficulty_column",
+      "alias_name": "avg_total_cooking_time"
+    },
+    "write_to_file": {
+      "column_name": "*",
+      "component_type": "write",
+      "component_name": "write_to_file",
+      "output_file_path": "/var/etl/output",
+      "input_component_name": "calculate_avg",
+      "format_type": "csv",
+      "write_options": {
+        "header": "true"
+      }
+    }
+  }
+}
